@@ -1,20 +1,50 @@
-var bufferSize = 640;
+var bufferSize = 512;
 var bufferWidth = bufferSize;
 var bufferHeight = bufferSize;
 var showTexture = false;
-var speed = 0.5;
-var saturation = 3.0;
+var speed = 0.9;
+var saturation = 4.0;
 var lightness = 1.5;
 var isPaused = false;
-var textureZoom = 3.2;
+var textureZoom = 2.8;
 var isDragging = false;
 var useEnvMap = true;
 var reflectivity = 0.2;
 var envMapSelect = 1;
-var enableFilter = true;
+var enableFilter = false;
 var projectionScreen;
 
 var scene = new THREE.Scene();
+
+var mic, fft;
+function setupMic() {
+   mic = new p5.AudioIn();
+   mic.start();
+   fft = new p5.FFT();
+   fft.setInput(mic);
+	 registerSpectrumAnalyzer();
+}
+function getAvg(list) {
+  return list.reduce(function (p, c) {
+    return p + c;
+  }) / list.length;
+}
+function registerSpectrumAnalyzer() {
+		 setInterval(analyzeSpectrum, 300);
+}
+function analyzeSpectrum() {
+	fft.analyze();
+	var spectrum = fft.getEnergy("mid", "lowMid");
+	// console.log(spectrum);
+	// var avg = getAvg(spectrum.splice(100,101)) / 20;
+	textureZoom = (spectrum - 80);
+	console.log(textureZoom);
+	bufferCamera.position.z = textureZoom;
+	lightness = spectrum - 120;
+	console.log(lightness);
+}
+
+setupMic()
 
 var bufferCamera = new THREE.PerspectiveCamera(75, bufferWidth / bufferHeight, 0.1, 1000);
 bufferCamera.position.z = textureZoom;
@@ -24,22 +54,20 @@ camera.position.z = 5;
 camera.zoom = 2;
 camera.updateProjectionMatrix();
 
-var renderer = new THREE.WebGLRenderer({ antialias: false });
-renderer.setSize(window.innerWidth, window.innerHeight);
+var renderer = new THREE.WebGLRenderer({ antialias: true });
 projectionScreen = renderer;
-
 if (enableFilter) {
 	var effect = new THREE.AsciiEffect( renderer, undefined, { color: true } );
-	effect.setSize( window.innerWidth, window.innerHeight );
 	projectionScreen = effect;
 }
 
+projectionScreen.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(projectionScreen.domElement);
 
 var controls = new THREE.TrackballControls(bufferCamera, projectionScreen.domElement);
 controls.noZoom = true;
 controls.dynamicDampingFactor = 0.5;
-controls.rotateSpeed = 1;
+controls.rotateSpeed = 2;
 
 var controls2 = new THREE.OrbitControls(camera, projectionScreen.domElement);
 controls2.enableZoom = true;
@@ -65,7 +93,7 @@ var cubemap = THREE.ImageUtils.loadTextureCube(urls);
 cubemap.format = THREE.RGBFormat;
 
 /// buffer scene objects
-var numAxes = 12;
+var numAxes = 18;
 var allShapes = [];
 var numShapes = 10;
 var complexity = 5;
@@ -98,8 +126,6 @@ bufferScene.add(pointLight);
 var pointLight = new THREE.PointLight(0x404040);
 pointLight.position.set(0,50,-200);
 bufferScene.add(pointLight);
-
-
 
 // Kaleidoscope Grid
 var grid = new KaleidoscopeGrid(bufferTexture);
@@ -227,9 +253,10 @@ function render()
 	update();
 
 	renderer.render(bufferScene, bufferCamera, bufferTexture);
-	renderer.render(scene, camera);
 	if (enableFilter) {
 		projectionScreen.render(scene, camera)
+	} else {
+		renderer.render(scene, camera);
 	}
 
 	requestAnimationFrame(render);
@@ -252,10 +279,7 @@ window.addEventListener('resize', function()
 {
 	var WIDTH = window.innerWidth;
 	var HEIGHT = window.innerHeight;
-	renderer.setSize(WIDTH, HEIGHT);
-	if (enableFilter) {
-		projectionScreen.setSize(WIDTH, HEIGHT);
-	}
+	projectionScreen.setSize(WIDTH, HEIGHT);
 
 	camera.left = window.innerWidth / - 2;
 	camera.right = window.innerWidth / 2;
@@ -273,18 +297,18 @@ window.addEventListener('keydown', function(e)
     }
 });
 
-effect.domElement.addEventListener('mousedown', function() {
-	isDragging = true;
-});
+// effect.domElement.addEventListener('mousedown', function() {
+// 	isDragging = true;
+// });
 
-effect.domElement.addEventListener('mouseup', function() {
-	isDragging = false;
-});
+// effect.domElement.addEventListener('mouseup', function() {
+// 	isDragging = false;
+// });
 
-effect.domElement.addEventListener('touchstart', function() {
-	isDragging = true;
-});
+// effect.domElement.addEventListener('touchstart', function() {
+// 	isDragging = true;
+// });
 
-effect.domElement.addEventListener('touchend', function() {
-	isDragging = false;
-});
+// effect.domElement.addEventListener('touchend', function() {
+// 	isDragging = false;
+// });
